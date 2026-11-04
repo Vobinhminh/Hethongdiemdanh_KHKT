@@ -3,14 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Hệ Thống Thu Thập Ảnh AI - THPT Ngô Quyền</title>
+    <title>Trạm Thu Thập Ảnh AI - THPT Ngô Quyền</title>
     
-    <!-- Tailwind & Thư viện UI -->
+    <!-- Tailwind & UI Framework -->
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     
-    <!-- AI MediaPipe Libraries (Google) -->
+    <!-- Google AI MediaPipe (Tách phông nền tự động) -->
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation/selfie_segmentation.js" crossorigin="anonymous"></script>
 
@@ -27,19 +27,18 @@
     <div class="glass w-full max-w-4xl p-6 rounded-2xl">
         <div class="text-center mb-6">
             <h1 class="text-2xl font-extrabold text-blue-700 uppercase tracking-wide"><i class="fas fa-camera-retro mr-2"></i> Trạm Thu Thập Ảnh AI</h1>
-            <p class="text-slate-500 text-sm mt-1">Tự động tách phông, cắt chuẩn người & lưu Drive</p>
+            <p class="text-slate-500 text-sm mt-1">Đồng bộ trực tiếp Google Sheets - Tự động tách phông thẻ học sinh</p>
         </div>
 
         <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
-            <!-- CỘT 1: BẢNG ĐIỀU KHIỂN & FORM LỌC THÔNG MINH -->
+            <!-- CỘT 1: THÔNG TIN HỌC SINH & LỌC THÔNG MINH -->
             <div class="space-y-4">
                 <div class="bg-blue-50 p-4 rounded-xl border border-blue-100">
-                    <h3 class="font-bold text-blue-800 mb-3 text-sm uppercase">1. Thông tin học sinh</h3>
+                    <h3 class="font-bold text-blue-800 mb-3 text-sm uppercase"><i class="fas fa-user-graduate mr-1"></i> 1. Thông tin học sinh</h3>
                     
                     <label class="block text-xs font-bold text-slate-600 mb-1">Chọn Lớp</label>
                     <select id="inp-class" class="w-full p-2.5 mb-3 rounded-lg border font-bold text-slate-700 shadow-sm" onchange="filterStudents()">
-                        <option value="">-- Bấm chọn Lớp --</option>
-                        <!-- Danh sách lớp sẽ được load tự động -->
+                        <option value="">-- Đang tải danh sách lớp từ Sheets --</option>
                     </select>
 
                     <label class="block text-xs font-bold text-slate-600 mb-1">Họ và Tên (Lọc thông minh)</label>
@@ -59,24 +58,22 @@
                 </div>
 
                 <div class="bg-emerald-50 p-4 rounded-xl border border-emerald-100">
-                    <h3 class="font-bold text-emerald-800 mb-3 text-sm uppercase">2. Thao Tác Lưu Trữ</h3>
+                    <h3 class="font-bold text-emerald-800 mb-3 text-sm uppercase"><i class="fas fa-cloud-upload-alt mr-1"></i> 2. Thao Tác Lưu Trữ</h3>
                     <button id="btn-upload" onclick="uploadToServer()" disabled class="w-full bg-slate-400 text-white font-bold py-3 rounded-xl shadow-md transition flex items-center justify-center">
-                        <i class="fas fa-cloud-upload-alt mr-2 text-xl"></i> ĐẨY ẢNH LÊN HỆ THỐNG
+                        <i class="fas fa-upload mr-2 text-xl"></i> ĐẨY ẢNH LÊN HỆ THỐNG
                     </button>
-                    <p class="text-xs text-center text-slate-500 mt-2">*Hệ thống sẽ tự động đưa ảnh vào Google Drive thư mục Lớp và gắn link vào Sheet lớp.</p>
+                    <p class="text-xs text-center text-slate-500 mt-2">*Hệ thống tự động lưu vào Drive và gắn link vào Cột G Sheet lớp.</p>
                 </div>
             </div>
 
-            <!-- CỘT 2: CAMERA & TRÍ TUỆ NHÂN TẠO -->
+            <!-- CỘT 2: CAMERA & AI TÁCH PHÔNG -->
             <div class="flex flex-col items-center bg-slate-800 p-4 rounded-xl border-4 border-slate-700 relative">
-                <!-- Video Stream -->
                 <video id="camera-stream" autoplay playsinline></video>
-                <!-- Canvas vẽ kết quả sau khi AI xử lý -->
                 <canvas id="preview-canvas"></canvas>
                 
                 <div id="ai-loading" class="absolute inset-0 bg-slate-900/80 flex flex-col items-center justify-center hidden rounded-lg">
                     <div class="w-10 h-10 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mb-2"></div>
-                    <span class="text-white font-bold text-sm tracking-widest animate-pulse">AI ĐANG CẮT NỀN...</span>
+                    <span class="text-white font-bold text-sm tracking-widest animate-pulse">AI ĐANG TÁCH PHÔNG...</span>
                 </div>
 
                 <div class="w-full flex space-x-2 mt-4">
@@ -92,36 +89,54 @@
                 </div>
             </div>
         </div>
-<script>
-        // ==========================================
-        // 1. CẤU HÌNH API & DỮ LIỆU TẠM
-        // ==========================================
-        // THAY LINK NÀY BẰNG LINK WEB APP GOOGLE APPS SCRIPT CỦA PRO (Đuôi /exec)
-        const GAS_WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbxEdP2H_PIrKgmcYCM40laKuSjdsiP8xGyMyzqtPNwsh4ryV-RE_GKfMudcHP7IRIxvrA/exec"; 
-        
-        // Vì GitHub Pages không dùng được google.script.run, pro cần nạp data Lớp/HS qua API.
-        // Để code chạy ngay, mình mô phỏng data mẫu (Lọc thông minh Lớp -> Danh sách HS).
-        const MOCK_DATA = {
-            "10A1": [
-                { name: "Nguyễn Văn An", dob: "12/01/2008", id: "HS1011" },
-                { name: "Trần Thị Bình", dob: "15/05/2008", id: "HS1012" }
-            ],
-            "10A2": [
-                { name: "Lê Hoài Cường", dob: "20/09/2008", id: "HS1021" }
-            ]
-        };
+    </div>
 
-        // Render danh sách Lớp vào select
-        window.onload = () => {
-            const classSelect = document.getElementById("inp-class");
-            Object.keys(MOCK_DATA).forEach(cls => {
-                let opt = document.createElement("option");
-                opt.value = cls; opt.innerText = cls;
-                classSelect.appendChild(opt);
-            });
-        };
+    <script>
+        // ==========================================
+        // CẤU HÌNH WEBHOOK URL CỦA GOOGLE APPS SCRIPT
+        // ==========================================
+        const GAS_WEBHOOK_URL = "https://script.google.com/macros/s/AKfycby.../exec"; // Thay link /exec của pro vào đây
 
+        let ALL_CLASSES_DATA = {};
         let currentStudents = [];
+
+        // Tải dữ liệu học sinh từ Google Sheets thông qua API doGet
+        window.onload = () => {
+            fetchStudentsFromSheets();
+        };
+
+        function fetchStudentsFromSheets() {
+            Swal.fire({
+                title: 'Đang đồng bộ dữ liệu lớp...',
+                allowOutsideClick: false,
+                didOpen: () => { Swal.showLoading(); }
+            });
+
+            fetch(GAS_WEBHOOK_URL + "?action=getStudentsData")
+            .then(res => res.json())
+            .then(response => {
+                Swal.close();
+                if (response.status === "success") {
+                    ALL_CLASSES_DATA = response.data;
+                    const classSelect = document.getElementById("inp-class");
+                    classSelect.innerHTML = '<option value="">-- Bấm chọn Lớp --</option>';
+                    
+                    Object.keys(ALL_CLASSES_DATA).forEach(cls => {
+                        let opt = document.createElement("option");
+                        opt.value = cls; 
+                        opt.innerText = cls;
+                        classSelect.appendChild(opt);
+                    });
+                } else {
+                    Swal.fire('Lỗi', 'Không thể lấy dữ liệu từ Google Sheets', 'error');
+                }
+            })
+            .catch(err => {
+                Swal.close();
+                Swal.fire('Lỗi Kết Nối', 'Không kết nối được với GAS Webhook. Kiểm tra lại URL.', 'error');
+            });
+        }
+
         function filterStudents() {
             const cls = document.getElementById("inp-class").value;
             const dataList = document.getElementById("student-list");
@@ -130,10 +145,11 @@
             clearInfo();
             if(!cls) return;
 
-            currentStudents = MOCK_DATA[cls] || [];
+            currentStudents = ALL_CLASSES_DATA[cls] || [];
             currentStudents.forEach(s => {
                 let opt = document.createElement("option");
-                opt.value = s.name; dataList.appendChild(opt);
+                opt.value = s.name; 
+                dataList.appendChild(opt);
             });
         }
 
@@ -143,15 +159,18 @@
             if (student) {
                 document.getElementById("inp-dob").value = student.dob;
                 document.getElementById("inp-id").value = student.id;
-            } else { clearInfo(); }
+            } else { 
+                clearInfo(); 
+            }
         }
 
         function clearInfo() {
-            document.getElementById("inp-dob").value = ""; document.getElementById("inp-id").value = "";
+            document.getElementById("inp-dob").value = ""; 
+            document.getElementById("inp-id").value = "";
         }
 
         // ==========================================
-        // 2. CAMERA & AI BACKGROUND REMOVAL (MEDIAPIPE)
+        // CAMERA & AI TÁCH PHÔNG NỀN (MEDIAPIPE)
         // ==========================================
         const videoElement = document.getElementById('camera-stream');
         const canvasElement = document.getElementById('preview-canvas');
@@ -159,13 +178,10 @@
         let finalImageBase64 = null;
         let isProcessing = false;
 
-        // Khởi tạo AI Selfie Segmentation của Google
         const selfieSegmentation = new SelfieSegmentation({locateFile: (file) => {
             return `https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation/${file}`;
         }});
-        selfieSegmentation.setOptions({ modelSelection: 1 }); // Model 1 tối ưu cho tốc độ
-
-        // Hàm CallBack khi AI quét xong 1 frame
+        selfieSegmentation.setOptions({ modelSelection: 1 });
         selfieSegmentation.onResults(onAIResults);
 
         async function startCamera() {
@@ -180,23 +196,16 @@
 
         async function captureAndProcessAI() {
             if (!videoElement.srcObject) return Swal.fire('Cảnh báo', 'Vui lòng bật Camera trước!', 'warning');
-            
-            // Hiện loading AI
             document.getElementById("ai-loading").classList.remove("hidden");
             isProcessing = true;
-
-            // Gửi frame hiện tại của Video cho AI phân tích
-            // AI sẽ gọi hàm onAIResults() ngay khi phân tích xong (Mất khoảng 0.1 - 0.5s)
             await selfieSegmentation.send({ image: videoElement });
         }
 
         function onAIResults(results) {
-            if(!isProcessing) return; // Chỉ xử lý khi người dùng bấm nút chụp
-            
+            if(!isProcessing) return;
             const w = results.image.width;
             const h = results.image.height;
 
-            // 1. Phân tích Mask (Bản đồ phân vùng người) để tìm Khung (Bounding Box) bao quanh người
             const tempCanvas = document.createElement('canvas');
             tempCanvas.width = w; tempCanvas.height = h;
             const tempCtx = tempCanvas.getContext('2d');
@@ -205,10 +214,9 @@
             const imgData = tempCtx.getImageData(0, 0, w, h).data;
             let minX = w, minY = h, maxX = 0, maxY = 0;
             
-            // Quét pixel để tìm người (Mask có channel Red = 255 ở chỗ có người)
-            for (let y = 0; y < h; y+=4) { // Nhảy 4 pixel quét cho nhanh
+            for (let y = 0; y < h; y+=4) {
                 for (let x = 0; x < w; x+=4) {
-                    const alpha = imgData[(y * w + x) * 4 + 3]; // Alpha channel
+                    const alpha = imgData[(y * w + x) * 4 + 3];
                     if (alpha > 128) {
                         if (x < minX) minX = x;
                         if (y < minY) minY = y;
@@ -218,7 +226,6 @@
                 }
             }
             
-            // Tính toán kích thước cắt ghép (Mở rộng thêm padding 30px cho đẹp)
             const padding = 30;
             minX = Math.max(0, minX - padding); minY = Math.max(0, minY - padding);
             maxX = Math.min(w, maxX + padding); maxY = Math.min(h, maxY + padding);
@@ -227,38 +234,30 @@
             if (cropW <= 0 || cropH <= 0) {
                 document.getElementById("ai-loading").classList.add("hidden");
                 isProcessing = false;
-                return Swal.fire('Lỗi AI', 'Không tìm thấy người trong khung hình. Vui lòng đứng vào giữa camera!', 'error');
+                return Swal.fire('Lỗi AI', 'Không tìm thấy người trong khung hình!', 'error');
             }
 
-            // 2. Xử lý ghép nền phông xanh trên Canvas chính
             canvasElement.width = cropW;
             canvasElement.height = cropH;
 
-            // Đổ phông nền thẻ học sinh chuẩn (Xanh dương thẫm #0f4c81)
+            // Đổ phông xanh chuẩn thẻ học sinh #0f4c81
             canvasCtx.fillStyle = "#0f4c81";
             canvasCtx.fillRect(0, 0, cropW, cropH);
 
-            // Tạo Canvas tạm chứa đúng lớp Tiền cảnh (Foreground - Người)
             const fgCanvas = document.createElement('canvas');
             fgCanvas.width = cropW; fgCanvas.height = cropH;
             const fgCtx = fgCanvas.getContext('2d');
             
-            // Lật ảnh (Vì camera trước bị ngược)
             fgCtx.translate(cropW, 0);
             fgCtx.scale(-1, 1);
-
-            // Vẽ Mask cắt tỉ lệ
             fgCtx.drawImage(results.segmentationMask, w - maxX, minY, cropW, cropH, 0, 0, cropW, cropH);
             
-            // Dùng source-in để giữ lại phần gốc dựa trên Mask
             fgCtx.globalCompositeOperation = 'source-in';
             fgCtx.drawImage(results.image, w - maxX, minY, cropW, cropH, 0, 0, cropW, cropH);
 
-            // Vẽ tiền cảnh (Đã lật lại) đè lên phông xanh
             canvasCtx.drawImage(fgCanvas, 0, 0);
 
-            // 3. Hoàn tất UI
-            finalImageBase64 = canvasElement.toDataURL('image/jpeg', 0.85); // Nén 85%
+            finalImageBase64 = canvasElement.toDataURL('image/jpeg', 0.85);
             
             videoElement.style.display = "none";
             canvasElement.style.display = "block";
@@ -266,11 +265,9 @@
             document.getElementById("btn-capture").classList.add("hidden");
             document.getElementById("btn-retake").classList.remove("hidden");
             
-            // Mở khóa nút Nạp lên Server
             document.getElementById("btn-upload").disabled = false;
             document.getElementById("btn-upload").classList.replace('bg-slate-400', 'bg-emerald-600');
             document.getElementById("btn-upload").classList.add('hover:bg-emerald-500');
-            
             isProcessing = false;
         }
 
@@ -286,22 +283,19 @@
             document.getElementById("btn-upload").classList.remove('hover:bg-emerald-500');
         }
 
-        // ==========================================
-        // 3. ĐẨY DATA VỀ GOOGLE SHEETS (DOPOST)
-        // ==========================================
+        // Gửi dữ liệu về GAS Webhook
         function uploadToServer() {
             const cls = document.getElementById("inp-class").value;
             const name = document.getElementById("inp-name").value;
             const studentId = document.getElementById("inp-id").value;
 
             if (!cls || !name || !studentId) {
-                return Swal.fire('Lỗi', 'Vui lòng chọn Lớp và gõ đúng Tên để lọc ra Mã Học Sinh!', 'warning');
+                return Swal.fire('Lỗi', 'Vui lòng chọn đầy đủ Lớp và Học sinh!', 'warning');
             }
             if (!finalImageBase64) {
-                return Swal.fire('Lỗi', 'Chưa có ảnh hoặc AI xử lý lỗi!', 'error');
+                return Swal.fire('Lỗi', 'Chưa có ảnh xử lý từ AI!', 'error');
             }
 
-            // Gói hàng y hệt định dạng mà hàm doPost() trong GAS của pro đang mong chờ
             const payload = {
                 image_data: finalImageBase64,
                 className: cls,
@@ -310,12 +304,11 @@
             };
 
             Swal.fire({
-                title: 'Đang tải lên Hệ thống...',
+                title: 'Đang đẩy ảnh lên Drive...',
                 allowOutsideClick: false,
                 didOpen: () => { Swal.showLoading(); }
             });
 
-            // Gửi Webhook sang GAS
             fetch(GAS_WEBHOOK_URL, {
                 method: 'POST',
                 body: JSON.stringify(payload)
@@ -323,17 +316,16 @@
             .then(res => res.json())
             .then(data => {
                 if(data.status === 'success') {
-                    Swal.fire('Thành công', 'Đã lưu ảnh vào Drive & Cập nhật Sheet Lớp thành công!', 'success')
+                    Swal.fire('Thành công', 'Đã lưu ảnh vào Drive và cập nhật Cột G Sheet lớp!', 'success')
                     .then(() => { retakePhoto(); document.getElementById("inp-name").value = ""; clearInfo(); });
                 } else {
                     Swal.fire('Lỗi từ Server', data.msg || 'Gửi thất bại', 'error');
                 }
             })
             .catch(err => {
-                Swal.fire('Lỗi mạng', 'Không thể kết nối đến Webhook GAS. Kiểm tra lại link GAS_WEBHOOK_URL trong code.', 'error');
+                Swal.fire('Lỗi mạng', 'Không thể gửi dữ liệu đến GAS Webhook.', 'error');
             });
         }
     </script>
 </body>
 </html>
-    </div>
