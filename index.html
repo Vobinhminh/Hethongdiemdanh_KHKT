@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Trạm thu thập ảnh AI</title>
+    <title>Trạm Thu Thập Ảnh AI - THPT Ngô Quyền</title>
     
     <!-- Tailwind & UI Framework -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -37,12 +37,14 @@
                 <div class="bg-blue-50 p-4 rounded-xl border border-blue-100">
                     <h3 class="font-bold text-blue-800 mb-3 text-sm uppercase"><i class="fas fa-user-graduate mr-1"></i> 1. Thông tin học sinh</h3>
                     
-                    <label class="block text-xs font-bold text-slate-600 mb-1">Chọn Lớp</label>
-                    <select id="inp-class" class="w-full p-2.5 mb-3 rounded-lg border font-bold text-slate-700 shadow-sm" onchange="filterStudents()" oninput="filterStudents()" onclick="filterStudents()">
-                    </select>
+                    <!-- Ô chọn lớp tích hợp lọc thông minh dạng datalist -->
+                    <label class="block text-xs font-bold text-slate-600 mb-1">Chọn Lớp (Gõ để lọc, ví dụ: 10)</label>
+                    <input type="text" id="inp-class" list="class-list" placeholder="Gõ hoặc chọn lớp..." class="w-full p-2.5 mb-3 rounded-lg border font-bold text-slate-700 shadow-sm bg-white" oninput="filterStudents()" onchange="filterStudents()">
+                    <datalist id="class-list"></datalist>
 
-                    <label class="block text-xs font-bold text-slate-600 mb-1">Họ và Tên (Lọc thông minh)</label>
-                    <input type="text" id="inp-name" list="student-list" placeholder="Gõ tên học sinh..." class="w-full p-2.5 mb-3 rounded-lg border text-sm shadow-sm" oninput="autoFillInfo()" onchange="autoFillInfo()">
+                    <!-- Ô họ và tên tích hợp lọc thông minh dạng datalist -->
+                    <label class="block text-xs font-bold text-slate-600 mb-1">Họ và Tên (Gõ tên để lọc)</label>
+                    <input type="text" id="inp-name" list="student-list" placeholder="Gõ tên học sinh..." class="w-full p-2.5 mb-3 rounded-lg border text-sm shadow-sm bg-white" oninput="autoFillInfo()" onchange="autoFillInfo()">
                     <datalist id="student-list"></datalist>
 
                     <div class="grid grid-cols-2 gap-3 mb-2">
@@ -116,7 +118,6 @@
             </div>
         </div>
     </div>
-
     <script>
         // ==========================================
         // 1. CẤU HÌNH WEBHOOK (GOOGLE APPS SCRIPT)
@@ -138,43 +139,43 @@
             .then(res => res.json())
             .then(response => {
                 if (response.status === "success") {
-                    ALL_CLASSES_DATA = response.data || {};
-                    const classSelect = document.getElementById("inp-class");
-                    classSelect.innerHTML = ''; 
+                    ALL_CLASSES_DATA = response.data;
+                    const classList = document.getElementById("class-list");
+                    classList.innerHTML = '';
                     
                     const classKeys = Object.keys(ALL_CLASSES_DATA).filter(cls => cls && cls.trim() !== "");
                     
+                    // Nạp danh sách lớp vào datalist để hỗ trợ lọc thông minh khi gõ
                     classKeys.forEach(cls => {
                         let opt = document.createElement("option"); 
                         opt.value = cls; 
-                        opt.innerText = cls;
-                        classSelect.appendChild(opt);
+                        classList.appendChild(opt);
                     });
-
-                    if (classKeys.length > 0) {
-                        classSelect.value = classKeys[0];
-                        filterStudents();
-                    }
                 }
             })
             .catch(err => {
-                console.error("Lỗi tải dữ liệu trên thiết bị:", err);
+                console.error("Lỗi tải dữ liệu lớp:", err);
             });
         }
 
         function filterStudents() {
-            const cls = document.getElementById("inp-class").value;
+            const clsInput = document.getElementById("inp-class").value.trim();
             const dataList = document.getElementById("student-list");
             dataList.innerHTML = ""; 
             document.getElementById("inp-name").value = ""; 
             clearInfo();
             
-            if(!cls) return;
+            // Tìm lớp khớp chính xác với nội dung gõ hoặc chọn
+            const matchedCls = Object.keys(ALL_CLASSES_DATA).find(c => c.toLowerCase() === clsInput.toLowerCase());
             
-            // Xử lý an toàn dữ liệu trên thiết bị di động (chuyển đổi key khớp chuẩn chữ hoa/thường)
-            let matchedKey = Object.keys(ALL_CLASSES_DATA).find(k => k.toUpperCase().replace(/\s+/g, '') === cls.toUpperCase().replace(/\s+/g, ''));
-            currentStudents = matchedKey ? ALL_CLASSES_DATA[matchedKey] : (ALL_CLASSES_DATA[cls] || []);
+            if(!matchedCls) {
+                currentStudents = [];
+                return;
+            }
             
+            currentStudents = ALL_CLASSES_DATA[matchedCls] || [];
+            
+            // Nạp danh sách học sinh vào datalist để lọc thông minh
             currentStudents.forEach(s => {
                 let opt = document.createElement("option"); 
                 opt.value = s.name; 
@@ -462,11 +463,11 @@
         // 3. TẢI ẢNH LÊN MÁY CHỦ
         // ==========================================
         async function uploadToServer() {
-            const cls = document.getElementById("inp-class").value;
+            const clsInput = document.getElementById("inp-class").value.trim();
             const name = document.getElementById("inp-name").value;
             const studentId = document.getElementById("inp-id").value;
 
-            if (!cls || !name || !studentId) return Swal.fire('Lỗi', 'Vui lòng chọn đầy đủ thông tin học sinh!', 'warning');
+            if (!clsInput || !name || !studentId) return Swal.fire('Lỗi', 'Vui lòng chọn đầy đủ thông tin học sinh!', 'warning');
             if (!finalImageBase64) return Swal.fire('Lỗi', 'Chưa có ảnh xử lý từ AI!', 'error');
 
             Swal.fire({
@@ -478,7 +479,7 @@
             try {
                 const imgPayload = { 
                     image_data: finalImageBase64, 
-                    className: cls, 
+                    className: clsInput, 
                     ten_hs: name, 
                     ma_hs: studentId 
                 };
