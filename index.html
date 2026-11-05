@@ -52,7 +52,6 @@
                             <input type="text" id="inp-dob" readonly class="w-full p-2.5 rounded-lg border bg-slate-200 text-sm font-bold text-slate-500">
                         </div>
                         <div>
-                            <!-- THAY THẾ HOÀN TOÀN MÃ HỌC SINH THÀNH MÃ PIN (6 SỐ) CÓ TÍCH XANH -->
                             <label class="block text-xs font-bold text-slate-600 mb-1">Mã PIN (6 Số)</label>
                             <div class="relative">
                                 <input type="password" id="inp-pin" maxlength="6" inputmode="numeric" placeholder="Nhập PIN..." oninput="checkPinLive()" class="w-full p-2.5 rounded-lg border border-slate-300 text-sm font-bold text-center tracking-widest bg-white focus:border-blue-500 focus:outline-none transition shadow-sm" disabled>
@@ -101,15 +100,16 @@
                     <span class="text-white font-bold text-sm tracking-widest animate-pulse">AI ĐANG XỬ LÝ...</span>
                 </div>
 
-                <div class="w-full flex space-x-2 mt-4 z-20">
-                    <button id="btn-toggle-cam" onclick="toggleCamera()" class="flex-1 bg-slate-600 hover:bg-slate-500 text-white font-bold py-2.5 rounded-lg text-sm transition">
-                        <i class="fas fa-power-off mr-1"></i> Bật Cam
+                <!-- Cụm nút điều khiển tương thích hoàn toàn Mobile & PC -->
+                <div class="w-full flex flex-col sm:flex-row gap-2 mt-4 z-20">
+                    <button id="btn-toggle-cam" onclick="toggleCamera()" class="w-full sm:flex-1 bg-slate-600 hover:bg-slate-500 text-white font-bold py-3 sm:py-2.5 rounded-lg text-sm transition shadow-md flex items-center justify-center">
+                        <i class="fas fa-power-off mr-2"></i> Bật Cam
                     </button>
-                    <button id="btn-capture" onclick="captureAndProcessAI()" class="flex-[2] bg-blue-600 hover:bg-blue-500 text-white font-bold py-2.5 rounded-lg shadow-lg text-sm transition hidden">
-                        <i class="fas fa-magic mr-1"></i> Tách nền & Chụp
+                    <button id="btn-capture" onclick="captureAndProcessAI()" class="w-full sm:flex-[2] bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 sm:py-2.5 rounded-lg shadow-lg text-sm transition flex items-center justify-center hidden">
+                        <i class="fas fa-magic mr-2"></i> Tách nền & Chụp
                     </button>
-                    <button id="btn-retake" onclick="retakePhoto()" class="flex-1 bg-red-500 hover:bg-red-400 text-white font-bold py-2.5 rounded-lg text-sm transition hidden">
-                        <i class="fas fa-redo"></i> Quét lại
+                    <button id="btn-retake" onclick="retakePhoto()" class="w-full sm:flex-1 bg-amber-600 hover:bg-amber-500 text-white font-bold py-3 sm:py-2.5 rounded-lg text-sm transition shadow-md flex items-center justify-center hidden">
+                        <i class="fas fa-redo mr-2"></i> Quét lại
                     </button>
                 </div>
             </div>
@@ -168,7 +168,6 @@
                 document.getElementById("inp-dob").value = student.dob;
                 document.getElementById("inp-id").value = student.id;
                 
-                // Mở khóa ô nhập mã PIN
                 pinInput.disabled = false;
                 pinInput.value = "";
                 pinInput.classList.replace("border-emerald-500", "border-slate-300");
@@ -190,7 +189,6 @@
             document.getElementById("icon-hs-check").classList.add("hidden");
         }
 
-        // Kiểm tra PIN trực tiếp, đúng 6 số và khớp hệ thống GAS thì hiển thị tích xanh
         function checkPinLive() {
             const name = document.getElementById("inp-name").value.trim();
             const pin = document.getElementById("inp-pin").value;
@@ -202,7 +200,7 @@
 
             if (pin.length === 6) {
                 if (pin === student.pin.toString()) {
-                    iconCheck.classList.remove("hidden"); // HIỆN TÍCH XANH
+                    iconCheck.classList.remove("hidden");
                     pinInput.classList.replace("border-slate-300", "border-emerald-500");
                 } else {
                     iconCheck.classList.add("hidden");
@@ -215,7 +213,6 @@
             checkEnableUpload();
         }
 
-        // Kiểm tra điều kiện kép trước khi sáng nút Đẩy ảnh
         function checkEnableUpload() {
             const btn = document.getElementById("btn-upload");
             const hasChecked = !document.getElementById("icon-hs-check").classList.contains("hidden");
@@ -288,9 +285,10 @@
             videoElement.srcObject = null;
             canvasElement.style.display = "none";
             document.getElementById("btn-capture").classList.add("hidden");
+            document.getElementById("btn-retake").classList.add("hidden");
             
             const btnToggle = document.getElementById("btn-toggle-cam");
-            btnToggle.innerHTML = '<i class="fas fa-power-off mr-1"></i> Bật Cam';
+            btnToggle.innerHTML = '<i class="fas fa-power-off mr-2"></i> Bật Cam';
             btnToggle.classList.replace('bg-red-600', 'bg-slate-600');
             btnToggle.classList.replace('hover:bg-red-500', 'hover:bg-slate-500');
             isCameraOn = false;
@@ -316,7 +314,7 @@
                     loadCameraDevices();
                     
                     const btnToggle = document.getElementById("btn-toggle-cam");
-                    btnToggle.innerHTML = '<i class="fas fa-power-off mr-1"></i> Tắt Cam';
+                    btnToggle.innerHTML = '<i class="fas fa-power-off mr-2"></i> Tắt Cam';
                     btnToggle.classList.replace('bg-slate-600', 'bg-red-600');
                     btnToggle.classList.replace('hover:bg-slate-500', 'hover:bg-red-500');
                     isCameraOn = true;
