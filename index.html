@@ -39,11 +39,11 @@
                     
                     <label class="block text-xs font-bold text-slate-600 mb-1">Chọn Lớp</label>
                     <select id="inp-class" class="w-full p-2.5 mb-3 rounded-lg border font-bold text-slate-700 shadow-sm" onchange="filterStudents()">
-                        <option value="">-- Đang tải danh sách lớp từ Sheets --</option>
+                        <option value="">-- Đang tải danh sách lớp --</option>
                     </select>
 
                     <label class="block text-xs font-bold text-slate-600 mb-1">Họ và Tên (Lọc thông minh)</label>
-                    <input type="text" id="inp-name" list="student-list" placeholder="Gõ tên học sinh..." class="w-full p-2.5 mb-3 rounded-lg border text-sm shadow-sm" onchange="autoFillInfo()">
+                    <input type="text" id="inp-name" list="student-list" placeholder="Gõ tên học sinh..." class="w-full p-2.5 mb-3 rounded-lg border text-sm shadow-sm" oninput="autoFillInfo()" onchange="autoFillInfo()">
                     <datalist id="student-list"></datalist>
 
                     <div class="grid grid-cols-2 gap-3 mb-2">
@@ -59,7 +59,6 @@
                             </div>
                         </div>
                     </div>
-                    <!-- Trường ẩn lưu mã học sinh ngầm để gửi về GAS -->
                     <input type="hidden" id="inp-id">
                 </div>
 
@@ -100,22 +99,24 @@
                     <span class="text-white font-bold text-sm tracking-widest animate-pulse">AI ĐANG XỬ LÝ...</span>
                 </div>
 
-                <!-- Cụm nút điều khiển tương thích hoàn toàn Mobile & PC -->
-                <div class="w-full flex flex-col sm:flex-row gap-2 mt-4 z-20">
-                    <button id="btn-toggle-cam" onclick="toggleCamera()" class="w-full sm:flex-1 bg-slate-600 hover:bg-slate-500 text-white font-bold py-3 sm:py-2.5 rounded-lg text-sm transition shadow-md flex items-center justify-center">
-                        <i class="fas fa-power-off mr-2"></i> Bật Cam
+                <!-- Cụm nút điều khiển tối ưu Responsive (PC & Mobile) -->
+                <div class="w-full grid grid-cols-2 sm:flex sm:flex-row gap-2 mt-4 z-20">
+                    <button id="btn-toggle-cam" onclick="toggleCamera()" class="col-span-1 sm:flex-1 bg-slate-600 hover:bg-slate-500 text-white font-bold py-2.5 rounded-lg text-xs sm:text-sm transition shadow-md flex items-center justify-center">
+                        <i class="fas fa-power-off mr-1"></i> Bật Cam
                     </button>
-                    <button id="btn-capture" onclick="captureAndProcessAI()" class="w-full sm:flex-[2] bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 sm:py-2.5 rounded-lg shadow-lg text-sm transition flex items-center justify-center hidden">
-                        <i class="fas fa-magic mr-2"></i> Tách nền & Chụp
+                    <button id="btn-capture" onclick="captureAndProcessAI()" class="col-span-1 sm:flex-[2] bg-blue-600 hover:bg-blue-500 text-white font-bold py-2.5 rounded-lg shadow-lg text-xs sm:text-sm transition flex items-center justify-center hidden">
+                        <i class="fas fa-magic mr-1"></i> Tách nền & Chụp
                     </button>
-                    <button id="btn-retake" onclick="retakePhoto()" class="w-full sm:flex-1 bg-amber-600 hover:bg-amber-500 text-white font-bold py-3 sm:py-2.5 rounded-lg text-sm transition shadow-md flex items-center justify-center hidden">
-                        <i class="fas fa-redo mr-2"></i> Quét lại
+                    <button id="btn-save-local" onclick="saveImageLocally()" class="col-span-1 sm:flex-1 bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2.5 rounded-lg text-xs sm:text-sm transition shadow-md flex items-center justify-center hidden">
+                        <i class="fas fa-download mr-1"></i> Lưu ảnh
+                    </button>
+                    <button id="btn-retake" onclick="retakePhoto()" class="col-span-2 sm:flex-1 bg-amber-600 hover:bg-amber-500 text-white font-bold py-2.5 rounded-lg text-xs sm:text-sm transition shadow-md flex items-center justify-center hidden">
+                        <i class="fas fa-redo mr-1"></i> Quét lại
                     </button>
                 </div>
             </div>
         </div>
-    </div>
-    <script>
+        <script>
         // ==========================================
         // 1. CẤU HÌNH WEBHOOK (GOOGLE APPS SCRIPT)
         // ==========================================
@@ -137,9 +138,14 @@
                     ALL_CLASSES_DATA = response.data;
                     const classSelect = document.getElementById("inp-class");
                     classSelect.innerHTML = '<option value="">-- Bấm chọn Lớp --</option>';
+                    
                     Object.keys(ALL_CLASSES_DATA).forEach(cls => {
-                        let opt = document.createElement("option"); opt.value = cls; opt.innerText = cls;
-                        classSelect.appendChild(opt);
+                        if (cls && cls.trim() !== "") {
+                            let opt = document.createElement("option"); 
+                            opt.value = cls; 
+                            opt.innerText = cls;
+                            classSelect.appendChild(opt);
+                        }
                     });
                 }
             });
@@ -154,7 +160,9 @@
             if(!cls) return;
             currentStudents = ALL_CLASSES_DATA[cls] || [];
             currentStudents.forEach(s => {
-                let opt = document.createElement("option"); opt.value = s.name; dataList.appendChild(opt);
+                let opt = document.createElement("option"); 
+                opt.value = s.name; 
+                dataList.appendChild(opt);
             });
         }
 
@@ -285,10 +293,11 @@
             videoElement.srcObject = null;
             canvasElement.style.display = "none";
             document.getElementById("btn-capture").classList.add("hidden");
+            document.getElementById("btn-save-local").classList.add("hidden");
             document.getElementById("btn-retake").classList.add("hidden");
             
             const btnToggle = document.getElementById("btn-toggle-cam");
-            btnToggle.innerHTML = '<i class="fas fa-power-off mr-2"></i> Bật Cam';
+            btnToggle.innerHTML = '<i class="fas fa-power-off mr-1"></i> Bật Cam';
             btnToggle.classList.replace('bg-red-600', 'bg-slate-600');
             btnToggle.classList.replace('hover:bg-red-500', 'hover:bg-slate-500');
             isCameraOn = false;
@@ -314,7 +323,7 @@
                     loadCameraDevices();
                     
                     const btnToggle = document.getElementById("btn-toggle-cam");
-                    btnToggle.innerHTML = '<i class="fas fa-power-off mr-2"></i> Tắt Cam';
+                    btnToggle.innerHTML = '<i class="fas fa-power-off mr-1"></i> Tắt Cam';
                     btnToggle.classList.replace('bg-slate-600', 'bg-red-600');
                     btnToggle.classList.replace('hover:bg-slate-500', 'hover:bg-red-500');
                     isCameraOn = true;
@@ -407,21 +416,35 @@
             
             document.getElementById("ai-loading").classList.add("hidden");
             document.getElementById("btn-capture").classList.add("hidden");
+            document.getElementById("btn-save-local").classList.remove("hidden");
             document.getElementById("btn-retake").classList.remove("hidden");
             
             checkEnableUpload(); 
         }
 
+        // Tính năng Lưu ảnh về máy (Download local)
+        function saveImageLocally() {
+            if (!finalImageBase64) return;
+            const studentName = document.getElementById("inp-name").value.trim() || "hocsinh";
+            const a = document.createElement('a');
+            a.href = finalImageBase64;
+            a.download = `AnhThe_${studentName}.jpg`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+        }
+
         function retakePhoto() {
             finalImageBase64 = null; isCaptured = false; 
             document.getElementById("btn-capture").classList.remove("hidden");
+            document.getElementById("btn-save-local").classList.add("hidden");
             document.getElementById("btn-retake").classList.add("hidden");
             checkEnableUpload(); 
             processRealTimeAR(); 
         }
 
         // ==========================================
-        // 3. TẢI ẢNH LÊN MÁY CHỦ (SAU KHI ĐÃ ĐỦ ĐIỀU KIỆN)
+        // 3. TẢI ẢNH LÊN MÁY CHỦ
         // ==========================================
         async function uploadToServer() {
             const cls = document.getElementById("inp-class").value;
@@ -469,3 +492,4 @@
     </script>
 </body>
 </html>
+    </div>
