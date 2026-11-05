@@ -38,9 +38,7 @@
                     <h3 class="font-bold text-blue-800 mb-3 text-sm uppercase"><i class="fas fa-user-graduate mr-1"></i> 1. Thông tin học sinh</h3>
                     
                     <label class="block text-xs font-bold text-slate-600 mb-1">Chọn Lớp</label>
-                    <!-- Bắt trọn vẹn cả sự kiện trên máy tính và thiết bị di động -->
                     <select id="inp-class" class="w-full p-2.5 mb-3 rounded-lg border font-bold text-slate-700 shadow-sm" onchange="filterStudents()" oninput="filterStudents()" onclick="filterStudents()">
-                        <!-- Đã xóa bỏ dòng -- Bấm chọn lớp -- theo yêu cầu -->
                     </select>
 
                     <label class="block text-xs font-bold text-slate-600 mb-1">Họ và Tên (Lọc thông minh)</label>
@@ -118,6 +116,7 @@
             </div>
         </div>
     </div>
+
     <script>
         // ==========================================
         // 1. CẤU HÌNH WEBHOOK (GOOGLE APPS SCRIPT)
@@ -133,16 +132,15 @@
         };
 
         function fetchStudentsFromSheets() {
-            // Chống cache giúp thiết bị di động luôn nhận dữ liệu mới nhất
             const cacheBustUrl = GAS_WEBHOOK_URL + "?action=getStudentsData&t=" + new Date().getTime();
 
             fetch(cacheBustUrl, { redirect: "follow" })
             .then(res => res.json())
             .then(response => {
                 if (response.status === "success") {
-                    ALL_CLASSES_DATA = response.data;
+                    ALL_CLASSES_DATA = response.data || {};
                     const classSelect = document.getElementById("inp-class");
-                    classSelect.innerHTML = ''; // Làm sạch hoàn toàn, không hiển thị dòng chọn lớp
+                    classSelect.innerHTML = ''; 
                     
                     const classKeys = Object.keys(ALL_CLASSES_DATA).filter(cls => cls && cls.trim() !== "");
                     
@@ -153,7 +151,6 @@
                         classSelect.appendChild(opt);
                     });
 
-                    // Tự động kích hoạt nạp danh sách học sinh cho lớp đầu tiên để điện thoại nhận ngay lập tức
                     if (classKeys.length > 0) {
                         classSelect.value = classKeys[0];
                         filterStudents();
@@ -169,12 +166,15 @@
             const cls = document.getElementById("inp-class").value;
             const dataList = document.getElementById("student-list");
             dataList.innerHTML = ""; 
+            document.getElementById("inp-name").value = ""; 
+            clearInfo();
             
             if(!cls) return;
             
-            currentStudents = ALL_CLASSES_DATA[cls] || [];
+            // Xử lý an toàn dữ liệu trên thiết bị di động (chuyển đổi key khớp chuẩn chữ hoa/thường)
+            let matchedKey = Object.keys(ALL_CLASSES_DATA).find(k => k.toUpperCase().replace(/\s+/g, '') === cls.toUpperCase().replace(/\s+/g, ''));
+            currentStudents = matchedKey ? ALL_CLASSES_DATA[matchedKey] : (ALL_CLASSES_DATA[cls] || []);
             
-            // Đảm bảo nạp dữ liệu mượt mà trên cả di động
             currentStudents.forEach(s => {
                 let opt = document.createElement("option"); 
                 opt.value = s.name; 
