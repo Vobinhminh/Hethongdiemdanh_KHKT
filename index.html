@@ -39,7 +39,7 @@
                     
                     <label class="block text-xs font-bold text-slate-600 mb-1">Chọn Lớp</label>
                     <select id="inp-class" class="w-full p-2.5 mb-3 rounded-lg border font-bold text-slate-700 shadow-sm" onchange="filterStudents()">
-                        <option value="">-- Đang tải danh sách lớp --</option>
+                        <option value="">-- Bấm chọn Lớp --</option>
                     </select>
 
                     <label class="block text-xs font-bold text-slate-600 mb-1">Họ và Tên (Lọc thông minh)</label>
@@ -116,7 +116,8 @@
                 </div>
             </div>
         </div>
-        <script>
+    </div>
+    <script>
         // ==========================================
         // 1. CẤU HÌNH WEBHOOK (GOOGLE APPS SCRIPT)
         // ==========================================
@@ -131,7 +132,10 @@
         };
 
         function fetchStudentsFromSheets() {
-            fetch(GAS_WEBHOOK_URL + "?action=getStudentsData")
+            // Thêm chống cache (?t=timestamp) giúp thiết bị di động cập nhật dữ liệu mượt mà
+            const cacheBustUrl = GAS_WEBHOOK_URL + "?action=getStudentsData&t=" + new Date().getTime();
+
+            fetch(cacheBustUrl, { redirect: "follow" })
             .then(res => res.json())
             .then(response => {
                 if (response.status === "success") {
@@ -148,6 +152,9 @@
                         }
                     });
                 }
+            })
+            .catch(err => {
+                console.error("Lỗi fetch:", err);
             });
         }
 
@@ -422,7 +429,6 @@
             checkEnableUpload(); 
         }
 
-        // Tính năng Lưu ảnh về máy (Download local)
         function saveImageLocally() {
             if (!finalImageBase64) return;
             const studentName = document.getElementById("inp-name").value.trim() || "hocsinh";
@@ -492,4 +498,4 @@
     </script>
 </body>
 </html>
-    </div>
+        
