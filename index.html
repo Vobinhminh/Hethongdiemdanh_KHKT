@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Trạm thu thập ảnh AI</title>
+    <title>Trạm thu ảnh AI</title>
     
     <!-- Tailwind & UI Framework -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -29,7 +29,6 @@
     <div class="glass w-full max-w-4xl p-6 rounded-2xl">
         <div class="text-center mb-6">
             <h1 class="text-2xl font-extrabold text-blue-700 uppercase tracking-wide"><i class="fas fa-camera-retro mr-2"></i> Trạm Thu Thập Ảnh AI</h1>
-            <p class="text-slate-500 text-sm mt-1">Đồng bộ Sheets - Lưới sinh trắc AR & Bảo mật Mã PIN</p>
         </div>
 
         <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
@@ -99,7 +98,7 @@
                 </div>
 
                 <div class="w-full flex space-x-2 mt-4 z-20">
-                    <button onclick="startCamera()" class="flex-1 bg-slate-600 hover:bg-slate-500 text-white font-bold py-2.5 rounded-lg text-sm transition">
+                    <button id="btn-toggle-cam" onclick="toggleCamera()" class="flex-1 bg-slate-600 hover:bg-slate-500 text-white font-bold py-2.5 rounded-lg text-sm transition">
                         <i class="fas fa-power-off mr-1"></i> Bật Cam
                     </button>
                     <button id="btn-capture" onclick="captureAndProcessAI()" class="flex-[2] bg-blue-600 hover:bg-blue-500 text-white font-bold py-2.5 rounded-lg shadow-lg text-sm transition hidden">
@@ -174,6 +173,7 @@
         let finalImageBase64 = null;
         let isCaptured = false;
         let isARActive = true;
+        let isCameraOn = false; // Trạng thái kiểm soát nút Bật/Tắt cam
 
         document.getElementById('toggle-ar').addEventListener('change', (e) => { isARActive = e.target.checked; });
 
@@ -196,7 +196,7 @@
             } catch (err) {}
         }
 
-        function switchCamera() { if (currentStream) startCamera(); }
+        function switchCamera() { if (currentStream && isCameraOn) startCamera(); }
 
         const faceMesh = new FaceMesh({locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`});
         faceMesh.setOptions({ maxNumFaces: 1, refineLandmarks: true, minDetectionConfidence: 0.6, minTrackingConfidence: 0.6 });
@@ -205,6 +205,31 @@
         const selfieSegmentation = new SelfieSegmentation({locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation/${file}`});
         selfieSegmentation.setOptions({ modelSelection: 1 });
         selfieSegmentation.onResults(onSelfieSegmentationResults);
+
+        // Nút Toggle Camera Bật / Tắt
+        function toggleCamera() {
+            if (isCameraOn) {
+                stopCamera();
+            } else {
+                startCamera();
+            }
+        }
+
+        function stopCamera() {
+            if (currentStream) {
+                currentStream.getTracks().forEach(track => track.stop());
+                currentStream = null;
+            }
+            videoElement.srcObject = null;
+            canvasElement.style.display = "none";
+            document.getElementById("btn-capture").classList.add("hidden");
+            
+            const btnToggle = document.getElementById("btn-toggle-cam");
+            btnToggle.innerHTML = '<i class="fas fa-power-off mr-1"></i> Bật Cam';
+            btnToggle.classList.replace('bg-red-600', 'bg-slate-600');
+            btnToggle.classList.replace('hover:bg-red-500', 'hover:bg-slate-500');
+            isCameraOn = false;
+        }
 
         async function startCamera() {
             try {
@@ -224,14 +249,21 @@
                     canvasElement.style.display = "block";
                     isCaptured = false;
                     loadCameraDevices();
+                    
+                    const btnToggle = document.getElementById("btn-toggle-cam");
+                    btnToggle.innerHTML = '<i class="fas fa-power-off mr-1"></i> Tắt Cam';
+                    btnToggle.classList.replace('bg-slate-600', 'bg-red-600');
+                    btnToggle.classList.replace('hover:bg-slate-500', 'hover:bg-red-500');
+                    isCameraOn = true;
+
                     processRealTimeAR(); 
                 };
             } catch (err) { Swal.fire('Lỗi', 'Cấp quyền Camera!', 'error'); }
         }
 
         async function processRealTimeAR() {
-            if (!isCaptured && videoElement.videoWidth > 0) await faceMesh.send({image: videoElement});
-            if (!isCaptured) requestAnimationFrame(processRealTimeAR);
+            if (!isCaptured && videoElement.videoWidth > 0 && isCameraOn) await faceMesh.send({image: videoElement});
+            if (!isCaptured && isCameraOn) requestAnimationFrame(processRealTimeAR);
         }
 
         function onFaceMeshResults(results) {
@@ -329,7 +361,7 @@
         }
 
         // ==========================================
-        // 3. XÁC THỰC MÃ PIN & TẢI ẢNH LÊN MÁY CHỦ
+        // 3. XÁC THỰC MÃ PIN & TẢI ẢNH LÊN MÁY CHỦ (HOÀN THIỆN)
         // ==========================================
         async function uploadToServer() {
             const cls = document.getElementById("inp-class").value;
@@ -339,11 +371,9 @@
             if (!cls || !name || !studentId) return Swal.fire('Lỗi', 'Vui lòng chọn đầy đủ Lớp và Học sinh!', 'warning');
             if (!finalImageBase64) return Swal.fire('Lỗi', 'Chưa có ảnh xử lý từ AI!', 'error');
 
-            // 1. Tìm đúng Học sinh đang được chọn để lấy Mã PIN
             const student = currentStudents.find(s => s.name.toLowerCase() === name.toLowerCase());
             if (!student) return Swal.fire('Lỗi', 'Không tìm thấy thông tin học sinh trong CSDL!', 'error');
 
-            // 2. Hiện hộp thoại Yêu cầu nhập mã PIN
             const { value: enteredPin } = await Swal.fire({
                 title: 'Xác thực bảo mật',
                 html: `Nhập mã PIN (6 số) của học sinh <b>${name}</b> để xác nhận.`,
@@ -360,7 +390,6 @@
                 cancelButtonText: 'Hủy',
                 confirmButtonColor: '#10b981',
                 preConfirm: (pin) => {
-                    // Kiểm tra PIN nhập vào có khớp với mã PIN lấy từ Google Sheets không
                     if (!pin || pin.toString() !== student.pin.toString()) {
                         Swal.showValidationMessage('❌ Mã PIN không chính xác!');
                         return false;
@@ -369,37 +398,75 @@
                 }
             });
 
-            // Nếu người dùng bấm Hủy (không có mã PIN)
             if (!enteredPin) return;
 
-            // 3. Tiến hành Upload khi mã PIN hợp lệ
-            const payload = {
-                image_data: finalImageBase64,
-                className: cls,
-                ten_hs: name,
-                ma_hs: studentId
-            };
+            // HIỂN THỊ TÍCH XANH NẾU MÃ PIN ĐÚNG
+            await Swal.fire({
+                icon: 'success',
+                title: 'Xác thực thành công!',
+                text: 'Hệ thống đang tiến hành đồng bộ...',
+                showConfirmButton: false,
+                timer: 1500
+            });
 
             Swal.fire({
-                title: 'Đang đẩy ảnh lên Drive...',
+                title: 'Đang lưu vào Hệ thống...',
                 allowOutsideClick: false,
                 didOpen: () => { Swal.showLoading(); }
             });
 
-            fetch(GAS_WEBHOOK_URL, {
-                method: 'POST',
-                body: JSON.stringify(payload)
-            })
-            .then(res => res.json())
-            .then(data => {
-                if(data.status === 'success') {
-                    Swal.fire('Thành công', 'Đã xác thực và cập nhật ảnh vào Google Sheets!', 'success')
-                    .then(() => { retakePhoto(); document.getElementById("inp-name").value = ""; clearInfo(); });
-                } else {
-                    Swal.fire('Lỗi từ Server', data.msg || 'Gửi thất bại', 'error');
+            // LOGIC NGẦM 1: ĐỔI MÃ PIN NẾU LÀ LẦN ĐĂNG NHẬP ĐẦU TIÊN
+            if (student.statusPin !== "Đã đổi mã pin") {
+                try {
+                    const pinPayload = {
+                        action: "changePin",
+                        className: cls,
+                        ma_hs: studentId,
+                        newPin: enteredPin
+                    };
+                    const pinResponse = await fetch(GAS_WEBHOOK_URL, {
+                        method: 'POST',
+                        body: JSON.stringify(pinPayload)
+                    });
+                    const pinData = await pinResponse.json();
+                    
+                    if (pinData.status !== "success") {
+                        return Swal.fire('Lỗi', 'Đổi mã PIN thất bại, vui lòng thử lại.', 'error');
+                    }
+                } catch (err) {
+                    return Swal.fire('Lỗi mạng', 'Không thể kết nối đến máy chủ để đổi PIN.', 'error');
                 }
-            })
-            .catch(err => Swal.fire('Lỗi mạng', 'Không thể kết nối GAS Webhook.', 'error'));
+            }
+
+            // LOGIC NGẦM 2: SAU KHI ĐỔI PIN XONG, TIẾN HÀNH UP ẢNH
+            try {
+                const imgPayload = {
+                    image_data: finalImageBase64,
+                    className: cls,
+                    ten_hs: name,
+                    ma_hs: studentId
+                };
+                
+                const imgResponse = await fetch(GAS_WEBHOOK_URL, {
+                    method: 'POST',
+                    body: JSON.stringify(imgPayload)
+                });
+                const imgData = await imgResponse.json();
+
+                if (imgData.status === 'success') {
+                    Swal.fire('Thành công', 'Đã lưu ảnh vào Drive và cập nhật Cột G Sheet lớp!', 'success')
+                    .then(() => { 
+                        retakePhoto(); 
+                        document.getElementById("inp-name").value = ""; 
+                        clearInfo(); 
+                        fetchStudentsFromSheets(); // Reload lại data để nhận trạng thái "Đã đổi mã pin" mới nhất
+                    });
+                } else {
+                    Swal.fire('Lỗi từ Server', imgData.msg || 'Gửi ảnh thất bại', 'error');
+                }
+            } catch (err) {
+                Swal.fire('Lỗi mạng', 'Không thể đẩy ảnh lên Google Drive.', 'error');
+            }
         }
     </script>
 </body>
