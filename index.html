@@ -3,23 +3,25 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Trạm Thu Thập Ảnh AI - THPT Ngô Quyền</title>
+    <title>Trạm thu thập ảnh AI </title>
     
     <!-- Tailwind & UI Framework -->
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     
-    <!-- Google AI MediaPipe (Tách phông nền tự động) -->
+    <!-- Các bộ xử lý AI của Google MediaPipe -->
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation/selfie_segmentation.js" crossorigin="anonymous"></script>
 
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap');
         body { background: #f1f5f9; font-family: 'Inter', sans-serif; }
         .glass { background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px); box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1); border: 1px solid rgba(255, 255, 255, 0.3); }
-        #preview-canvas { max-width: 100%; border-radius: 0.75rem; background: #0f4c81; display: none; }
-        #camera-stream { width: 100%; border-radius: 0.75rem; transform: scaleX(-1); background: #000; }
+        #preview-canvas { max-width: 100%; border-radius: 0.75rem; background: #000; display: none; }
+        #camera-stream { width: 100%; border-radius: 0.75rem; transform: scaleX(-1); background: #000; display: none; }
     </style>
 </head>
 <body class="p-4 md:p-8 flex flex-col items-center min-h-screen">
@@ -27,7 +29,7 @@
     <div class="glass w-full max-w-4xl p-6 rounded-2xl">
         <div class="text-center mb-6">
             <h1 class="text-2xl font-extrabold text-blue-700 uppercase tracking-wide"><i class="fas fa-camera-retro mr-2"></i> Trạm Thu Thập Ảnh AI</h1>
-            <p class="text-slate-500 text-sm mt-1">Đồng bộ trực tiếp Google Sheets - Tự động tách phông thẻ học sinh</p>
+            <p class="text-slate-500 text-sm mt-1">Đồng bộ Sheets - Lưới sinh trắc AR & Tự động tách nền thẻ</p>
         </div>
 
         <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
@@ -66,17 +68,28 @@
                 </div>
             </div>
 
-            <!-- CỘT 2: CAMERA & AI TÁCH PHÔNG -->
+            <!-- CỘT 2: CAMERA & AI (FACE MESH + BACKGROUND REMOVAL) -->
             <div class="flex flex-col items-center bg-slate-800 p-4 rounded-xl border-4 border-slate-700 relative">
-                <video id="camera-stream" autoplay playsinline></video>
-                <canvas id="preview-canvas"></canvas>
                 
-                <div id="ai-loading" class="absolute inset-0 bg-slate-900/80 flex flex-col items-center justify-center hidden rounded-lg">
-                    <div class="w-10 h-10 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mb-2"></div>
-                    <span class="text-white font-bold text-sm tracking-widest animate-pulse">AI ĐANG TÁCH PHÔNG...</span>
+                <!-- Bảng điều khiển bật/tắt AR Face Mesh -->
+                <div class="flex items-center justify-between w-full mb-3 bg-slate-900 p-3 rounded-lg border border-slate-600">
+                    <span class="text-white text-xs font-bold uppercase"><i class="fas fa-vr-cardboard text-cyan-400 mr-2 text-base"></i> Quét khuôn mặt (AR)</span>
+                    <label class="relative inline-flex items-center cursor-pointer">
+                        <input type="checkbox" id="toggle-ar" class="sr-only peer" checked>
+                        <div class="w-11 h-6 bg-slate-600 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-cyan-500 shadow-inner"></div>
+                    </label>
                 </div>
 
-                <div class="w-full flex space-x-2 mt-4">
+                <!-- Core Media Elements -->
+                <video id="camera-stream" autoplay playsinline></video>
+                <canvas id="preview-canvas" class="w-full rounded-lg shadow-lg border border-slate-600"></canvas>
+                
+                <div id="ai-loading" class="absolute inset-0 bg-slate-900/90 flex flex-col items-center justify-center hidden rounded-lg z-10">
+                    <div class="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mb-3"></div>
+                    <span class="text-white font-bold text-sm tracking-widest animate-pulse">AI ĐANG XỬ LÝ...</span>
+                </div>
+
+                <div class="w-full flex space-x-2 mt-4 z-20">
                     <button onclick="startCamera()" class="flex-1 bg-slate-600 hover:bg-slate-500 text-white font-bold py-2.5 rounded-lg text-sm transition">
                         <i class="fas fa-video mr-1"></i> Bật Cam
                     </button>
@@ -90,20 +103,15 @@
             </div>
         </div>
     </div>
-
     <script>
         // ==========================================
-        // CẤU HÌNH WEBHOOK URL CỦA GOOGLE APPS SCRIPT
+        // 1. CẤU HÌNH WEBHOOK (GOOGLE APPS SCRIPT)
         // ==========================================
         const GAS_WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbyyqyPxijGka_yA-em9dRFc3p-DR4GrbivoyeuZaFZ3UAsK44d06EAM08lmrO82hccHPg/exec"; 
-       
         let ALL_CLASSES_DATA = {};
         let currentStudents = [];
 
-        // Tải dữ liệu học sinh từ Google Sheets thông qua API doGet
-        window.onload = () => {
-            fetchStudentsFromSheets();
-        };
+        window.onload = () => { fetchStudentsFromSheets(); };
 
         function fetchStudentsFromSheets() {
             Swal.fire({
@@ -120,11 +128,8 @@
                     ALL_CLASSES_DATA = response.data;
                     const classSelect = document.getElementById("inp-class");
                     classSelect.innerHTML = '<option value="">-- Bấm chọn Lớp --</option>';
-                    
                     Object.keys(ALL_CLASSES_DATA).forEach(cls => {
-                        let opt = document.createElement("option");
-                        opt.value = cls; 
-                        opt.innerText = cls;
+                        let opt = document.createElement("option"); opt.value = cls; opt.innerText = cls;
                         classSelect.appendChild(opt);
                     });
                 } else {
@@ -133,23 +138,18 @@
             })
             .catch(err => {
                 Swal.close();
-                Swal.fire('Lỗi Kết Nối', 'Không kết nối được với GAS Webhook. Kiểm tra lại URL.', 'error');
+                Swal.fire('Lỗi Kết Nối', 'Không kết nối được với GAS Webhook.', 'error');
             });
         }
 
         function filterStudents() {
             const cls = document.getElementById("inp-class").value;
             const dataList = document.getElementById("student-list");
-            dataList.innerHTML = "";
-            document.getElementById("inp-name").value = "";
-            clearInfo();
+            dataList.innerHTML = ""; document.getElementById("inp-name").value = ""; clearInfo();
             if(!cls) return;
-
             currentStudents = ALL_CLASSES_DATA[cls] || [];
             currentStudents.forEach(s => {
-                let opt = document.createElement("option");
-                opt.value = s.name; 
-                dataList.appendChild(opt);
+                let opt = document.createElement("option"); opt.value = s.name; dataList.appendChild(opt);
             });
         }
 
@@ -159,50 +159,115 @@
             if (student) {
                 document.getElementById("inp-dob").value = student.dob;
                 document.getElementById("inp-id").value = student.id;
-            } else { 
-                clearInfo(); 
-            }
+            } else { clearInfo(); }
         }
-
-        function clearInfo() {
-            document.getElementById("inp-dob").value = ""; 
-            document.getElementById("inp-id").value = "";
-        }
+        function clearInfo() { document.getElementById("inp-dob").value = ""; document.getElementById("inp-id").value = ""; }
 
         // ==========================================
-        // CAMERA & AI TÁCH PHÔNG NỀN (MEDIAPIPE)
+        // 2. AI MODULE: FACE MESH (AR) & SELFIE SEGMENTATION
         // ==========================================
         const videoElement = document.getElementById('camera-stream');
         const canvasElement = document.getElementById('preview-canvas');
         const canvasCtx = canvasElement.getContext('2d');
+        
         let finalImageBase64 = null;
-        let isProcessing = false;
+        let isCaptured = false;
+        let isARActive = true;
 
+        // Bắt sự kiện bật/tắt AR Mesh
+        document.getElementById('toggle-ar').addEventListener('change', (e) => {
+            isARActive = e.target.checked;
+        });
+
+        // --- KHỞI TẠO AI 1: FACE MESH (Quét lưới tọa độ 468 điểm) ---
+        const faceMesh = new FaceMesh({locateFile: (file) => {
+            return `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`;
+        }});
+        faceMesh.setOptions({
+            maxNumFaces: 1,
+            refineLandmarks: true,
+            minDetectionConfidence: 0.6,
+            minTrackingConfidence: 0.6
+        });
+        faceMesh.onResults(onFaceMeshResults);
+
+        // --- KHỞI TẠO AI 2: SELFIE SEGMENTATION (Tách nền xanh làm thẻ) ---
         const selfieSegmentation = new SelfieSegmentation({locateFile: (file) => {
             return `https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation/${file}`;
         }});
         selfieSegmentation.setOptions({ modelSelection: 1 });
-        selfieSegmentation.onResults(onAIResults);
+        selfieSegmentation.onResults(onSelfieSegmentationResults);
 
+        // --- ĐIỀU KHIỂN CAMERA & VÒNG LẶP ---
         async function startCamera() {
             try {
                 const stream = await navigator.mediaDevices.getUserMedia({ video: { width: 1280, height: 720, facingMode: "user" } });
                 videoElement.srcObject = stream;
-                document.getElementById("btn-capture").classList.remove("hidden");
+                videoElement.onloadedmetadata = () => {
+                    videoElement.play();
+                    document.getElementById("btn-capture").classList.remove("hidden");
+                    canvasElement.style.display = "block"; // Hiển thị canvas
+                    isCaptured = false;
+                    processRealTimeAR(); // Khởi động vòng lặp vẽ lưới AR
+                };
             } catch (err) {
-                Swal.fire('Lỗi Camera', 'Không thể truy cập camera. Vui lòng cấp quyền!', 'error');
+                Swal.fire('Lỗi Camera', 'Vui lòng cấp quyền sử dụng camera!', 'error');
             }
         }
 
+        // Vòng lặp liên tục truyền Video vào FaceMesh khi chưa bấm chụp
+        async function processRealTimeAR() {
+            if (!isCaptured && videoElement.videoWidth > 0) {
+                await faceMesh.send({image: videoElement});
+            }
+            if (!isCaptured) {
+                requestAnimationFrame(processRealTimeAR);
+            }
+        }
+
+        // CALLBACK AI 1: Vẽ lưới lên khuôn mặt
+        function onFaceMeshResults(results) {
+            if (isCaptured) return; 
+
+            canvasElement.width = videoElement.videoWidth;
+            canvasElement.height = videoElement.videoHeight;
+            
+            canvasCtx.save();
+            canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
+            
+            // Lật hình ảnh (hiệu ứng gương)
+            canvasCtx.translate(canvasElement.width, 0);
+            canvasCtx.scale(-1, 1);
+            
+            // 1. Vẽ hình ảnh camera gốc lên Canvas
+            canvasCtx.drawImage(results.image, 0, 0, canvasElement.width, canvasElement.height);
+            
+            // 2. Nếu bật chế độ AR, tiến hành vẽ lưới sinh trắc học
+            if (isARActive && results.multiFaceLandmarks) {
+                for (const landmarks of results.multiFaceLandmarks) {
+                    drawConnectors(canvasCtx, landmarks, FACEMESH_TESSELATION, {color: '#C0C0C070', lineWidth: 1}); // Lưới xám mờ
+                    drawConnectors(canvasCtx, landmarks, FACEMESH_RIGHT_EYE, {color: '#00FFFF', lineWidth: 2});     // Mắt phải viền xanh
+                    drawConnectors(canvasCtx, landmarks, FACEMESH_LEFT_EYE, {color: '#00FFFF', lineWidth: 2});      // Mắt trái viền xanh
+                    drawConnectors(canvasCtx, landmarks, FACEMESH_FACE_OVAL, {color: '#E0E0E0', lineWidth: 1.5});   // Khung viền mặt
+                    drawConnectors(canvasCtx, landmarks, FACEMESH_LIPS, {color: '#FF3030', lineWidth: 1.5});        // Môi đỏ
+                }
+            }
+            canvasCtx.restore();
+        }
+
+        // BẤM NÚT CHỤP: Dừng AR, Chuyển sang tách phông nền xanh
         async function captureAndProcessAI() {
-            if (!videoElement.srcObject) return Swal.fire('Cảnh báo', 'Vui lòng bật Camera trước!', 'warning');
+            if (!videoElement.srcObject) return Swal.fire('Cảnh báo', 'Vui lòng bật Cam!', 'warning');
+            
             document.getElementById("ai-loading").classList.remove("hidden");
-            isProcessing = true;
+            isCaptured = true; // Dừng vòng lặp AR Face Mesh ngay lập tức
+            
+            // Truyền 1 khung hình duy nhất sang AI tách phông
             await selfieSegmentation.send({ image: videoElement });
         }
 
-        function onAIResults(results) {
-            if(!isProcessing) return;
+        // CALLBACK AI 2: Xử lý cắt ghép phông xanh thẻ học sinh
+        function onSelfieSegmentationResults(results) {
             const w = results.image.width;
             const h = results.image.height;
 
@@ -218,29 +283,27 @@
                 for (let x = 0; x < w; x+=4) {
                     const alpha = imgData[(y * w + x) * 4 + 3];
                     if (alpha > 128) {
-                        if (x < minX) minX = x;
-                        if (y < minY) minY = y;
-                        if (x > maxX) maxX = x;
-                        if (y > maxY) maxY = y;
+                        if (x < minX) minX = x; if (y < minY) minY = y;
+                        if (x > maxX) maxX = x; if (y > maxY) maxY = y;
                     }
                 }
             }
             
-            const padding = 30;
+            const padding = 40;
             minX = Math.max(0, minX - padding); minY = Math.max(0, minY - padding);
             maxX = Math.min(w, maxX + padding); maxY = Math.min(h, maxY + padding);
             const cropW = maxX - minX; const cropH = maxY - minY;
             
             if (cropW <= 0 || cropH <= 0) {
                 document.getElementById("ai-loading").classList.add("hidden");
-                isProcessing = false;
-                return Swal.fire('Lỗi AI', 'Không tìm thấy người trong khung hình!', 'error');
+                retakePhoto();
+                return Swal.fire('Lỗi AI', 'Không nhận diện được người để cắt phông!', 'error');
             }
 
             canvasElement.width = cropW;
             canvasElement.height = cropH;
 
-            // Đổ phông xanh chuẩn thẻ học sinh #0f4c81
+            // Đổ màu xanh dương chuẩn thẻ học sinh
             canvasCtx.fillStyle = "#0f4c81";
             canvasCtx.fillRect(0, 0, cropW, cropH);
 
@@ -259,8 +322,6 @@
 
             finalImageBase64 = canvasElement.toDataURL('image/jpeg', 0.85);
             
-            videoElement.style.display = "none";
-            canvasElement.style.display = "block";
             document.getElementById("ai-loading").classList.add("hidden");
             document.getElementById("btn-capture").classList.add("hidden");
             document.getElementById("btn-retake").classList.remove("hidden");
@@ -268,33 +329,32 @@
             document.getElementById("btn-upload").disabled = false;
             document.getElementById("btn-upload").classList.replace('bg-slate-400', 'bg-emerald-600');
             document.getElementById("btn-upload").classList.add('hover:bg-emerald-500');
-            isProcessing = false;
         }
 
+        // BẤM NÚT CHỤP LẠI: Bật lại vòng lặp AR Face Mesh
         function retakePhoto() {
             finalImageBase64 = null;
-            canvasElement.style.display = "none";
-            videoElement.style.display = "block";
+            isCaptured = false; 
+            
             document.getElementById("btn-capture").classList.remove("hidden");
             document.getElementById("btn-retake").classList.add("hidden");
-            
             document.getElementById("btn-upload").disabled = true;
             document.getElementById("btn-upload").classList.replace('bg-emerald-600', 'bg-slate-400');
             document.getElementById("btn-upload").classList.remove('hover:bg-emerald-500');
+            
+            processRealTimeAR(); // Kích hoạt lại vòng lặp vẽ lưới
         }
 
-        // Gửi dữ liệu về GAS Webhook
+        // ==========================================
+        // 3. UPLOAD API (GỬI LÊN GOOGLE SHEETS & DRIVE)
+        // ==========================================
         function uploadToServer() {
             const cls = document.getElementById("inp-class").value;
             const name = document.getElementById("inp-name").value;
             const studentId = document.getElementById("inp-id").value;
 
-            if (!cls || !name || !studentId) {
-                return Swal.fire('Lỗi', 'Vui lòng chọn đầy đủ Lớp và Học sinh!', 'warning');
-            }
-            if (!finalImageBase64) {
-                return Swal.fire('Lỗi', 'Chưa có ảnh xử lý từ AI!', 'error');
-            }
+            if (!cls || !name || !studentId) return Swal.fire('Lỗi', 'Vui lòng chọn đầy đủ Lớp và Học sinh!', 'warning');
+            if (!finalImageBase64) return Swal.fire('Lỗi', 'Chưa có ảnh xử lý từ AI!', 'error');
 
             const payload = {
                 image_data: finalImageBase64,
@@ -322,9 +382,7 @@
                     Swal.fire('Lỗi từ Server', data.msg || 'Gửi thất bại', 'error');
                 }
             })
-            .catch(err => {
-                Swal.fire('Lỗi mạng', 'Không thể gửi dữ liệu đến GAS Webhook.', 'error');
-            });
+            .catch(err => Swal.fire('Lỗi mạng', 'Không thể kết nối GAS Webhook.', 'error'));
         }
     </script>
 </body>
