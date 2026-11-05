@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Trạm thu ảnh AI</title>
+    <title>Trạm thu thập ảnh AI</title>
     
     <!-- Tailwind & UI Framework -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -32,7 +32,7 @@
         </div>
 
         <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
-            <!-- CỘT 1: THÔNG TIN HỌC SINH & LỌC THÔNG MINH -->
+            <!-- CỘT 1: THÔNG TIN HỌC SINH & XÁC THỰC MÃ PIN -->
             <div class="space-y-4">
                 <div class="bg-blue-50 p-4 rounded-xl border border-blue-100">
                     <h3 class="font-bold text-blue-800 mb-3 text-sm uppercase"><i class="fas fa-user-graduate mr-1"></i> 1. Thông tin học sinh</h3>
@@ -52,10 +52,16 @@
                             <input type="text" id="inp-dob" readonly class="w-full p-2.5 rounded-lg border bg-slate-200 text-sm font-bold text-slate-500">
                         </div>
                         <div>
-                            <label class="block text-xs font-bold text-slate-600 mb-1">Mã Học Sinh</label>
-                            <input type="text" id="inp-id" readonly class="w-full p-2.5 rounded-lg border bg-slate-200 text-sm font-bold text-slate-500">
+                            <!-- THAY THẾ HOÀN TOÀN MÃ HỌC SINH THÀNH MÃ PIN (6 SỐ) CÓ TÍCH XANH -->
+                            <label class="block text-xs font-bold text-slate-600 mb-1">Mã PIN (6 Số)</label>
+                            <div class="relative">
+                                <input type="password" id="inp-pin" maxlength="6" inputmode="numeric" placeholder="Nhập PIN..." oninput="checkPinLive()" class="w-full p-2.5 rounded-lg border border-slate-300 text-sm font-bold text-center tracking-widest bg-white focus:border-blue-500 focus:outline-none transition shadow-sm" disabled>
+                                <i id="icon-hs-check" class="fas fa-check-circle absolute right-3 top-3 text-emerald-500 text-lg hidden"></i>
+                            </div>
                         </div>
                     </div>
+                    <!-- Trường ẩn lưu mã học sinh ngầm để gửi về GAS -->
+                    <input type="hidden" id="inp-id">
                 </div>
 
                 <div class="bg-emerald-50 p-4 rounded-xl border border-emerald-100">
@@ -63,14 +69,13 @@
                     <button id="btn-upload" onclick="uploadToServer()" disabled class="w-full bg-slate-400 text-white font-bold py-3 rounded-xl shadow-md transition flex items-center justify-center">
                         <i class="fas fa-upload mr-2 text-xl"></i> ĐẨY ẢNH LÊN HỆ THỐNG
                     </button>
-                    <p class="text-xs text-center text-slate-500 mt-2">*Yêu cầu xác thực Mã PIN trước khi lưu hoặc thay đổi ảnh.</p>
+                    <p class="text-xs text-center text-slate-500 mt-2">*Yêu cầu: Nhập đúng Mã PIN (có tích xanh) và Đã hoàn tất chụp ảnh.</p>
                 </div>
             </div>
 
             <!-- CỘT 2: CAMERA & AI (FACE MESH + BACKGROUND REMOVAL) -->
             <div class="flex flex-col items-center bg-slate-800 p-4 rounded-xl border-4 border-slate-700 relative">
                 
-                <!-- Bảng điều khiển Camera & AR -->
                 <div class="flex flex-col w-full mb-3 space-y-2">
                     <div class="flex items-center justify-between bg-slate-900 p-2.5 rounded-lg border border-slate-600">
                         <span class="text-white text-xs font-bold uppercase"><i class="fas fa-video text-cyan-400 mr-2 text-sm"></i> Nguồn Camera</span>
@@ -88,7 +93,6 @@
                     </div>
                 </div>
 
-                <!-- Core Media Elements -->
                 <video id="camera-stream" autoplay playsinline></video>
                 <canvas id="preview-canvas" class="w-full rounded-lg shadow-lg border border-slate-600"></canvas>
                 
@@ -105,7 +109,7 @@
                         <i class="fas fa-magic mr-1"></i> Tách nền & Chụp
                     </button>
                     <button id="btn-retake" onclick="retakePhoto()" class="flex-1 bg-red-500 hover:bg-red-400 text-white font-bold py-2.5 rounded-lg text-sm transition hidden">
-                        <i class="fas fa-redo"></i> Chụp lại
+                        <i class="fas fa-redo"></i> Quét lại
                     </button>
                 </div>
             </div>
@@ -144,7 +148,9 @@
         function filterStudents() {
             const cls = document.getElementById("inp-class").value;
             const dataList = document.getElementById("student-list");
-            dataList.innerHTML = ""; document.getElementById("inp-name").value = ""; clearInfo();
+            dataList.innerHTML = ""; 
+            document.getElementById("inp-name").value = ""; 
+            clearInfo();
             if(!cls) return;
             currentStudents = ALL_CLASSES_DATA[cls] || [];
             currentStudents.forEach(s => {
@@ -155,12 +161,75 @@
         function autoFillInfo() {
             const name = document.getElementById("inp-name").value.trim();
             const student = currentStudents.find(s => s.name.toLowerCase() === name.toLowerCase());
+            const pinInput = document.getElementById("inp-pin");
+            const iconCheck = document.getElementById("icon-hs-check");
+
             if (student) {
                 document.getElementById("inp-dob").value = student.dob;
                 document.getElementById("inp-id").value = student.id;
-            } else { clearInfo(); }
+                
+                // Mở khóa ô nhập mã PIN
+                pinInput.disabled = false;
+                pinInput.value = "";
+                pinInput.classList.replace("border-emerald-500", "border-slate-300");
+                iconCheck.classList.add("hidden");
+                checkEnableUpload();
+            } else { 
+                clearInfo(); 
+                pinInput.disabled = true;
+                pinInput.value = "";
+                iconCheck.classList.add("hidden");
+            }
         }
-        function clearInfo() { document.getElementById("inp-dob").value = ""; document.getElementById("inp-id").value = ""; }
+        
+        function clearInfo() { 
+            document.getElementById("inp-dob").value = ""; 
+            document.getElementById("inp-id").value = ""; 
+            document.getElementById("inp-pin").value = "";
+            document.getElementById("inp-pin").disabled = true;
+            document.getElementById("icon-hs-check").classList.add("hidden");
+        }
+
+        // Kiểm tra PIN trực tiếp, đúng 6 số và khớp hệ thống GAS thì hiển thị tích xanh
+        function checkPinLive() {
+            const name = document.getElementById("inp-name").value.trim();
+            const pin = document.getElementById("inp-pin").value;
+            const student = currentStudents.find(s => s.name.toLowerCase() === name.toLowerCase());
+            const iconCheck = document.getElementById("icon-hs-check");
+            const pinInput = document.getElementById("inp-pin");
+            
+            if (!student) return;
+
+            if (pin.length === 6) {
+                if (pin === student.pin.toString()) {
+                    iconCheck.classList.remove("hidden"); // HIỆN TÍCH XANH
+                    pinInput.classList.replace("border-slate-300", "border-emerald-500");
+                } else {
+                    iconCheck.classList.add("hidden");
+                    pinInput.classList.replace("border-emerald-500", "border-slate-300");
+                }
+            } else {
+                iconCheck.classList.add("hidden");
+                pinInput.classList.replace("border-emerald-500", "border-slate-300");
+            }
+            checkEnableUpload();
+        }
+
+        // Kiểm tra điều kiện kép trước khi sáng nút Đẩy ảnh
+        function checkEnableUpload() {
+            const btn = document.getElementById("btn-upload");
+            const hasChecked = !document.getElementById("icon-hs-check").classList.contains("hidden");
+            
+            if (finalImageBase64 && hasChecked) {
+                btn.disabled = false;
+                btn.classList.replace('bg-slate-400', 'bg-emerald-600');
+                btn.classList.add('hover:bg-emerald-500');
+            } else {
+                btn.disabled = true;
+                btn.classList.replace('bg-emerald-600', 'bg-slate-400');
+                btn.classList.remove('hover:bg-emerald-500');
+            }
+        }
 
         // ==========================================
         // 2. CAMERA MANAGEMENT & AI
@@ -173,7 +242,7 @@
         let finalImageBase64 = null;
         let isCaptured = false;
         let isARActive = true;
-        let isCameraOn = false; // Trạng thái kiểm soát nút Bật/Tắt cam
+        let isCameraOn = false;
 
         document.getElementById('toggle-ar').addEventListener('change', (e) => { isARActive = e.target.checked; });
 
@@ -206,13 +275,9 @@
         selfieSegmentation.setOptions({ modelSelection: 1 });
         selfieSegmentation.onResults(onSelfieSegmentationResults);
 
-        // Nút Toggle Camera Bật / Tắt
         function toggleCamera() {
-            if (isCameraOn) {
-                stopCamera();
-            } else {
-                startCamera();
-            }
+            if (isCameraOn) stopCamera();
+            else startCamera();
         }
 
         function stopCamera() {
@@ -345,111 +410,46 @@
             document.getElementById("ai-loading").classList.add("hidden");
             document.getElementById("btn-capture").classList.add("hidden");
             document.getElementById("btn-retake").classList.remove("hidden");
-            document.getElementById("btn-upload").disabled = false;
-            document.getElementById("btn-upload").classList.replace('bg-slate-400', 'bg-emerald-600');
-            document.getElementById("btn-upload").classList.add('hover:bg-emerald-500');
+            
+            checkEnableUpload(); 
         }
 
         function retakePhoto() {
             finalImageBase64 = null; isCaptured = false; 
             document.getElementById("btn-capture").classList.remove("hidden");
             document.getElementById("btn-retake").classList.add("hidden");
-            document.getElementById("btn-upload").disabled = true;
-            document.getElementById("btn-upload").classList.replace('bg-emerald-600', 'bg-slate-400');
-            document.getElementById("btn-upload").classList.remove('hover:bg-emerald-500');
+            checkEnableUpload(); 
             processRealTimeAR(); 
         }
 
         // ==========================================
-        // 3. XÁC THỰC MÃ PIN & TẢI ẢNH LÊN MÁY CHỦ (HOÀN THIỆN)
+        // 3. TẢI ẢNH LÊN MÁY CHỦ (SAU KHI ĐÃ ĐỦ ĐIỀU KIỆN)
         // ==========================================
         async function uploadToServer() {
             const cls = document.getElementById("inp-class").value;
             const name = document.getElementById("inp-name").value;
             const studentId = document.getElementById("inp-id").value;
 
-            if (!cls || !name || !studentId) return Swal.fire('Lỗi', 'Vui lòng chọn đầy đủ Lớp và Học sinh!', 'warning');
+            if (!cls || !name || !studentId) return Swal.fire('Lỗi', 'Vui lòng chọn đầy đủ thông tin học sinh!', 'warning');
             if (!finalImageBase64) return Swal.fire('Lỗi', 'Chưa có ảnh xử lý từ AI!', 'error');
 
-            const student = currentStudents.find(s => s.name.toLowerCase() === name.toLowerCase());
-            if (!student) return Swal.fire('Lỗi', 'Không tìm thấy thông tin học sinh trong CSDL!', 'error');
-
-            const { value: enteredPin } = await Swal.fire({
-                title: 'Xác thực bảo mật',
-                html: `Nhập mã PIN (6 số) của học sinh <b>${name}</b> để xác nhận.`,
-                input: 'password',
-                inputAttributes: {
-                    maxlength: 6,
-                    autocapitalize: 'off',
-                    autocorrect: 'off',
-                    inputmode: 'numeric',
-                    pattern: '[0-9]*'
-                },
-                showCancelButton: true,
-                confirmButtonText: '<i class="fas fa-lock"></i> Mở khóa & Lưu',
-                cancelButtonText: 'Hủy',
-                confirmButtonColor: '#10b981',
-                preConfirm: (pin) => {
-                    if (!pin || pin.toString() !== student.pin.toString()) {
-                        Swal.showValidationMessage('❌ Mã PIN không chính xác!');
-                        return false;
-                    }
-                    return pin;
-                }
-            });
-
-            if (!enteredPin) return;
-
-            // HIỂN THỊ TÍCH XANH NẾU MÃ PIN ĐÚNG
-            await Swal.fire({
-                icon: 'success',
-                title: 'Xác thực thành công!',
-                text: 'Hệ thống đang tiến hành đồng bộ...',
-                showConfirmButton: false,
-                timer: 1500
-            });
-
             Swal.fire({
-                title: 'Đang lưu vào Hệ thống...',
+                title: 'Đang đẩy ảnh lên Drive...',
                 allowOutsideClick: false,
                 didOpen: () => { Swal.showLoading(); }
             });
 
-            // LOGIC NGẦM 1: ĐỔI MÃ PIN NẾU LÀ LẦN ĐĂNG NHẬP ĐẦU TIÊN
-            if (student.statusPin !== "Đã đổi mã pin") {
-                try {
-                    const pinPayload = {
-                        action: "changePin",
-                        className: cls,
-                        ma_hs: studentId,
-                        newPin: enteredPin
-                    };
-                    const pinResponse = await fetch(GAS_WEBHOOK_URL, {
-                        method: 'POST',
-                        body: JSON.stringify(pinPayload)
-                    });
-                    const pinData = await pinResponse.json();
-                    
-                    if (pinData.status !== "success") {
-                        return Swal.fire('Lỗi', 'Đổi mã PIN thất bại, vui lòng thử lại.', 'error');
-                    }
-                } catch (err) {
-                    return Swal.fire('Lỗi mạng', 'Không thể kết nối đến máy chủ để đổi PIN.', 'error');
-                }
-            }
-
-            // LOGIC NGẦM 2: SAU KHI ĐỔI PIN XONG, TIẾN HÀNH UP ẢNH
             try {
-                const imgPayload = {
-                    image_data: finalImageBase64,
-                    className: cls,
-                    ten_hs: name,
-                    ma_hs: studentId
+                const imgPayload = { 
+                    image_data: finalImageBase64, 
+                    className: cls, 
+                    ten_hs: name, 
+                    ma_hs: studentId 
                 };
                 
-                const imgResponse = await fetch(GAS_WEBHOOK_URL, {
-                    method: 'POST',
-                    body: JSON.stringify(imgPayload)
+                const imgResponse = await fetch(GAS_WEBHOOK_URL, { 
+                    method: 'POST', 
+                    body: JSON.stringify(imgPayload) 
                 });
                 const imgData = await imgResponse.json();
 
@@ -459,13 +459,13 @@
                         retakePhoto(); 
                         document.getElementById("inp-name").value = ""; 
                         clearInfo(); 
-                        fetchStudentsFromSheets(); // Reload lại data để nhận trạng thái "Đã đổi mã pin" mới nhất
+                        fetchStudentsFromSheets(); 
                     });
                 } else {
                     Swal.fire('Lỗi từ Server', imgData.msg || 'Gửi ảnh thất bại', 'error');
                 }
             } catch (err) {
-                Swal.fire('Lỗi mạng', 'Không thể đẩy ảnh lên Google Drive.', 'error');
+                Swal.fire('Lỗi mạng', 'Không thể kết nối đến Google Apps Script.', 'error');
             }
         }
     </script>
