@@ -22,6 +22,9 @@
     #camera-stream { width: 100%; border-radius: 0.75rem; transform: scaleX(-1); background: #000; display: none; }
     .loader { border: 3px solid rgba(59, 130, 246, 0.1); border-top: 3px solid #3b82f6; border-radius: 50%; width: 45px; height: 45px; animation: spin 0.8s linear infinite; }
     @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+    .custom-scrollbar::-webkit-scrollbar-track { background: #f1f5f9; border-radius: 8px; }
+    .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 8px; }
   </style>
 </head>
 <body class="flex flex-col items-center justify-start pb-24">
@@ -55,13 +58,19 @@
                   <div class="bg-blue-50 p-4 rounded-xl border border-blue-100">
                       <h3 class="font-bold text-blue-800 mb-3 text-sm uppercase"><i class="fas fa-user-graduate mr-1"></i> 1. Thông tin học sinh</h3>
                       
-                      <label class="block text-xs font-bold text-slate-600 mb-1">Chọn Lớp (Gõ để lọc)</label>
-                      <input type="text" id="ai-inp-class" list="ai-class-list" placeholder="Gõ hoặc chọn lớp..." class="w-full p-2.5 mb-3 rounded-lg border font-bold text-slate-700 shadow-sm bg-white" oninput="aiFilterStudents()" onchange="aiFilterStudents()">
-                      <datalist id="ai-class-list"></datalist>
+                      <div class="mb-3 relative select-custom" id="wrapper-ai-class">
+                          <label class="block text-xs font-bold text-slate-600 mb-1">Chọn Lớp</label>
+                          <input type="hidden" id="ai-inp-class" value="">
+                          <button type="button" onclick="aiToggleSelect('dropdown-ai-class')" class="w-full flex justify-between p-2.5 bg-white border border-slate-300 rounded-lg font-bold text-sm text-slate-700 shadow-sm"><span id="ai-label-class" class="text-slate-400">-- Bấm chọn lớp --</span><i class="fas fa-chevron-down text-slate-400"></i></button>
+                          <ul id="dropdown-ai-class" class="hidden absolute z-50 w-full mt-1 bg-white border rounded-xl max-h-[220px] overflow-y-auto custom-scrollbar shadow-xl py-2"></ul>
+                      </div>
 
-                      <label class="block text-xs font-bold text-slate-600 mb-1">Họ và Tên (Gõ tên để lọc)</label>
-                      <input type="text" id="ai-inp-name" list="ai-student-list" placeholder="Gõ tên học sinh..." class="w-full p-2.5 mb-3 rounded-lg border text-sm shadow-sm bg-white" oninput="aiAutoFillInfo()" onchange="aiAutoFillInfo()">
-                      <datalist id="ai-student-list"></datalist>
+                      <div class="mb-3 relative select-custom" id="wrapper-ai-name">
+                          <label class="block text-xs font-bold text-slate-600 mb-1">Họ và Tên</label>
+                          <input type="hidden" id="ai-inp-name" value="">
+                          <button type="button" onclick="aiToggleSelect('dropdown-ai-name')" class="w-full flex justify-between p-2.5 bg-white border border-slate-300 rounded-lg font-bold text-sm text-slate-700 shadow-sm"><span id="ai-label-name" class="text-slate-400">-- Chọn học sinh --</span><i class="fas fa-chevron-down text-slate-400"></i></button>
+                          <ul id="dropdown-ai-name" class="hidden absolute z-50 w-full mt-1 bg-white border rounded-xl max-h-[220px] overflow-y-auto custom-scrollbar shadow-xl py-2"></ul>
+                      </div>
 
                       <div class="grid grid-cols-2 gap-3 mb-2">
                           <div>
@@ -142,6 +151,21 @@
     let aiIsCameraOn = false;
     let aiCurrentStream = null;
 
+    document.addEventListener('click', function(e) {
+      if (!e.target.closest('.select-custom')) {
+        document.querySelectorAll('ul[id^="dropdown-ai-"]').forEach(el => {
+          el.classList.add('hidden');
+        });
+      }
+    });
+
+    function aiToggleSelect(id) {
+      document.querySelectorAll('ul[id^="dropdown-ai-"]').forEach(el => {
+        if(el.id !== id) el.classList.add('hidden');
+      });
+      document.getElementById(id).classList.toggle('hidden');
+    }
+
     document.addEventListener("DOMContentLoaded", () => {
         if (typeof google !== 'undefined' && google.script && google.script.run) {
             google.script.run.withSuccessHandler(res => {
@@ -161,36 +185,65 @@
     });
 
     function aiInitPhotoStation() {
-        const classList = document.getElementById("ai-class-list");
-        classList.innerHTML = '';
-        if (appData.classes.length > 0) {
-            appData.classes.forEach(cls => { let opt = document.createElement("option"); opt.value = cls; classList.appendChild(opt); });
+        const ulClass = document.getElementById("dropdown-ai-class");
+        ulClass.innerHTML = '';
+        if (appData.classes && appData.classes.length > 0) {
+            appData.classes.forEach(c => {
+                let li = document.createElement("li");
+                li.className = "px-4 py-2.5 hover:bg-blue-50 cursor-pointer font-bold text-slate-700 text-sm border-b border-slate-100";
+                li.innerText = c;
+                li.onclick = () => aiChooseClass(c);
+                ulClass.appendChild(li);
+            });
         }
         aiLoadCameraDevices();
     }
 
-    function aiFilterStudents() {
-        const clsInput = document.getElementById("ai-inp-class").value.trim();
-        const dataList = document.getElementById("ai-student-list");
-        dataList.innerHTML = ""; document.getElementById("ai-inp-name").value = ""; aiClearInfo();
-        if(!clsInput) return;
+    function aiChooseClass(c) {
+        document.getElementById("ai-inp-class").value = c;
+        document.getElementById("ai-label-class").innerText = c;
+        document.getElementById("ai-label-class").classList.replace('text-slate-400', 'text-slate-800');
+        document.getElementById("dropdown-ai-class").classList.add("hidden");
         
+        document.getElementById("ai-inp-name").value = "";
+        document.getElementById("ai-label-name").innerText = "-- Chọn học sinh --";
+        document.getElementById("ai-label-name").classList.replace('text-slate-800', 'text-slate-400');
+        document.getElementById("dropdown-ai-name").innerHTML = "";
+        aiClearInfo();
+
         google.script.run.withSuccessHandler(res => {
             if(res && res.students) {
                 aiCurrentStudents = res.students;
-                aiCurrentStudents.forEach(s => { let opt = document.createElement("option"); opt.value = s.name; dataList.appendChild(opt); });
+                const ulName = document.getElementById("dropdown-ai-name");
+                ulName.innerHTML = "";
+                res.students.forEach((s, idx) => {
+                    let li = document.createElement("li");
+                    li.className = "px-4 py-2.5 hover:bg-blue-50 cursor-pointer font-bold text-slate-700 text-sm border-b border-slate-100";
+                    li.innerText = s.name;
+                    li.onclick = () => aiChooseStudent(idx, s.name);
+                    ulName.appendChild(li);
+                });
             }
-        }).getClassDataRawStudents(clsInput);
+        }).getClassDataRawStudents(c);
     }
 
-    function aiAutoFillInfo() {
-        const name = document.getElementById("ai-inp-name").value.trim();
-        const student = aiCurrentStudents.find(s => s.name.toLowerCase() === name.toLowerCase());
-        const pinInput = document.getElementById("ai-inp-pin"); const iconCheck = document.getElementById("ai-icon-hs-check");
+    function aiChooseStudent(idx, name) {
+        document.getElementById("ai-inp-name").value = name;
+        document.getElementById("ai-label-name").innerText = name;
+        document.getElementById("ai-label-name").classList.replace('text-slate-400', 'text-slate-800');
+        document.getElementById("dropdown-ai-name").classList.add("hidden");
+        
+        const student = aiCurrentStudents[idx];
+        const pinInput = document.getElementById("ai-inp-pin"); 
+        const iconCheck = document.getElementById("ai-icon-hs-check");
 
         if (student) {
-            document.getElementById("ai-inp-dob").value = student.dob || ""; document.getElementById("ai-inp-id").value = student.maHS || student.id || "";
-            pinInput.disabled = false; pinInput.value = ""; pinInput.classList.replace("border-emerald-500", "border-slate-300"); iconCheck.classList.add("hidden");
+            document.getElementById("ai-inp-dob").value = student.dob || ""; 
+            document.getElementById("ai-inp-id").value = student.maHS || student.id || "";
+            pinInput.disabled = false; 
+            pinInput.value = ""; 
+            pinInput.classList.replace("border-emerald-500", "border-slate-300"); 
+            iconCheck.classList.add("hidden");
             aiCheckEnableUpload();
         } else { 
             aiClearInfo(); 
